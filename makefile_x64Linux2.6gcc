@@ -1,0 +1,66 @@
+CPP= g++
+CPPFLAGS = -c -Wall -fpic -m64 -O2 -std=c++0x
+LN= g++
+AR=ar
+LDFLAGS= -m64
+SYSLIBS= -ldl -lnsl -lm -lpthread -lrt
+DEFINES= 
+
+INCLUDES= -I. 
+
+LIBS =  -lfastcdr -lfastrtps $(SYSLIBS)
+
+DIRECTORIES= output.dir output/x64Linux2.6gcc.dir lib.dir lib/x64Linux2.6gcc.dir bin.dir bin/x64Linux2.6gcc.dir
+
+all: $(DIRECTORIES) mytype mytypePublisherSubscriber
+
+
+mytype_TARGET= lib/x64Linux2.6gcc/libmytype.so
+mytype_TARGET_Z= lib/x64Linux2.6gcc/libmytype.a
+
+mytype_CLIENT_EXAMPLE_TARGET= bin/x64Linux2.6gcc/mytypePublisherSubscriber
+mytype_COMMON_SRC_CXXFILES = mytype.cxx
+
+mytype_COMMON_SRC_CPPFILES=
+
+mytype_CLIENTSOURCES = mytypePubSubTypes.cxx \
+	mytypePublisher.cxx \
+	mytypeSubscriber.cxx \
+	mytypePubSubMain.cxx
+
+mytype_COMMONOBJS    = $(mytype_COMMON_SRC_CXXFILES:%.cxx=output/x64Linux2.6gcc/%.o) $(mytype_COMMON_SRC_CPPFILES:%.cpp=output/x64Linux2.6gcc/%.o)
+
+mytype_CLIENTOBJS    = $(mytype_CLIENTSOURCES:%.cxx=output/x64Linux2.6gcc/%.o)
+
+mytypeOBJS+= $(mytype_COMMONOBJS) $(mytype_CLIENTOBJS)
+OBJS+= $(mytypeOBJS)
+
+$(mytype_TARGET): $(mytype_COMMONOBJS)
+	$(LN) $(LDFLAGS) -shared -o $(mytype_TARGET) $(mytype_COMMONOBJS) $(LIBS) -Llib/x64Linux2.6gcc 
+
+$(mytype_TARGET_Z): $(mytype_COMMONOBJS)
+	$(AR) -cru $(mytype_TARGET_Z) $(mytype_COMMONOBJS)
+
+$(mytype_CLIENT_EXAMPLE_TARGET): $(mytypeOBJS) lib/x64Linux2.6gcc/libmytype.a 
+	$(LN) $(LDFLAGS) -o $@ $(mytypeOBJS) -Wl,-Bstatic -Llib/x64Linux2.6gcc -lmytype  -Wl,-Bdynamic $(LIBS)
+
+mytypePublisherSubscriber : $(mytype_CLIENT_EXAMPLE_TARGET)
+mytype: $(mytype_TARGET) $(mytype_TARGET_Z) mytypePublisherSubscriber
+
+output/x64Linux2.6gcc/%.o:%.cxx
+	$(CPP) $(CPPFLAGS) $(INCLUDES) $(DEFINES) -c $< -o $@
+
+output/x64Linux2.6gcc/%.o:%.cpp
+	$(CPP) $(CPPFLAGS) $(INCLUDES) $(DEFINES) -c $< -o $@
+
+.PHONY: mytype mytypePublisherSubscriber
+
+clean:
+	@rm -f $(OBJS)
+
+%.dir : 
+	@echo "Checking directory $*"
+	@if [ ! -d $* ]; then \
+		echo "Making directory $*"; \
+		mkdir -p $* ; \
+	fi;
